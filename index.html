@@ -1,584 +1,205 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>76-Room Hotel HR Analytics Dashboard</title>
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Custom styles for professional look and feel */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7f9fb;
-        }
-        .tab-button.active {
-            border-bottom-width: 3px;
-            border-color: #2563eb;
-            color: #2563eb;
-        }
-        .kanban-column {
-            min-width: 320px;
-            max-width: 320px;
-            height: 100%;
-        }
-        .card {
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #2563eb;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>76-Room Hotel HR Analytics Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+    .tab-button.active { border-bottom-width: 3px; border-color: #2563eb; color: #2563eb; }
+    .kanban-column { min-width: 320px; max-width: 320px; height: 100%; }
+    .card { transition: all 0.3s ease; cursor: pointer; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+    .spinner { border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body onload="initApp()">
-    <div id="app" class="min-h-screen">
-        <!-- Header and Navigation -->
-        <header class="bg-white shadow-md sticky top-0 z-20">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <h1 class="text-3xl font-extrabold text-gray-900">
-                    <span class="text-blue-600">Hotel HR</span> Analytics
-                </h1>
-                <p class="text-sm text-gray-500">76 Rooms, 11 Floors | 80 Employees | User: <span id="user-id">Loading...</span></p>
+  <div id="app" class="min-h-screen">
 
-                <!-- Tabs -->
-                <nav class="mt-4 border-b border-gray-200">
-                    <div class="flex space-x-4 overflow-x-auto whitespace-nowrap pb-1">
-                        <button id="tab-performance" class="tab-button active flex items-center px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-colors" onclick="switchTab('performance')">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                            Key Metrics
-                        </button>
-                        <button id="tab-recruitment" class="tab-button flex items-center px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-colors" onclick="switchTab('recruitment')">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-3H17v3zm0-10l-4 4-4-4"></path></svg>
-                            Recruitment Pipeline
-                        </button>
-                    </div>
-                </nav>
-            </div>
-        </header>
+    <header class="bg-white shadow-md sticky top-0 z-20">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <h1 class="text-3xl font-extrabold text-gray-900">
+          <span class="text-blue-600">Hotel HR</span> Analytics
+        </h1>
+        <p class="text-sm text-gray-500">76 Rooms | 80 Employees | User: <span id="user-id">Loading...</span></p>
 
-        <!-- Main Content Area -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <nav class="mt-4 border-b border-gray-200">
+          <div class="flex space-x-4 overflow-x-auto whitespace-nowrap pb-1">
+            <button id="tab-performance" class="tab-button active flex items-center px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-colors" onclick="switchTab('performance')">Key Metrics</button>
+            <button id="tab-recruitment" class="tab-button flex items-center px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-colors" onclick="switchTab('recruitment')">Recruitment Pipeline</button>
+          </div>
+        </nav>
+      </div>
+    </header>
 
-            <!-- Loading/Error State -->
-            <div id="loading-state" class="p-8 text-center text-xl text-blue-600 font-semibold flex flex-col items-center justify-center hidden">
-                <div class="spinner mb-4"></div>
-                Fetching Hotel HR Data (Simulating SheetDB API call)...
-            </div>
-            <div id="error-state" class="p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg hidden" role="alert">
-                <p class="font-bold">Data Error</p>
-                <p id="error-message">Could not fetch data from the simulated database.</p>
-            </div>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div id="loading-state" class="p-8 text-center text-xl text-blue-600 font-semibold flex flex-col items-center justify-center hidden">
+        <div class="spinner mb-4"></div>
+        Fetching Hotel HR Data from SheetDB...
+      </div>
+      <div id="error-state" class="p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg hidden" role="alert">
+        <p class="font-bold">Data Error</p>
+        <p id="error-message">Could not fetch data.</p>
+      </div>
 
-            <!-- Content for Performance Tab -->
-            <div id="performance-tab" class="tab-content">
-                <!-- Filters -->
-                <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 mb-8 flex flex-wrap gap-4 items-center">
-                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707v7l-4-4v-3.586a1 1 0 00-.293-.707L3.293 7.293A1 1 101 6.586V4z"></path></svg>
-                    <span class="text-sm font-semibold text-gray-700 mr-2">Filters (Static Mock):</span>
-                    <select class="p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
-                        <option>All Departments</option>
-                        <option>Front Office</option>
-                        <option>Housekeeping</option>
-                        <option>F&B</option>
-                    </select>
-                    <select class="p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
-                        <option>Last 30 Days</option>
-                        <option>Q2 2024</option>
-                    </select>
-                </div>
+      <!-- KPI Section -->
+      <div id="performance-tab" class="tab-content">
+        <div id="kpi-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+      </div>
 
-                <!-- KPI Cards Grid -->
-                <div id="kpi-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <!-- KPI Cards will be injected here -->
-                </div>
-
-                <!-- Actionable Insights (Using Google Grounding) -->
-                <div class="mt-8 bg-blue-50 p-6 rounded-xl shadow-lg border border-blue-200">
-                    <h2 class="text-xl font-bold text-blue-800 mb-3 flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-8 0h8a2 2 0 002-2v-3a2 2 0 00-2-2H9a2 2 0 00-2 2v3a2 2 0 002 2z"></path></svg>
-                        Actionable Insight: Market Competitiveness (Demonstrates "Direction")
-                    </h2>
-                    <p class="text-sm text-blue-600 mb-4">
-                        *This insight uses the Google Search tool to check external market data, providing real-time "direction" for strategic decisions.*
-                    </p>
-                    <div id="google-insight-container">
-                        <div class="flex items-center text-gray-500">
-                            <div class="spinner mr-2"></div>
-                            Analyzing market data with Google Search...
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Content for Recruitment Tab (Kanban) -->
-            <div id="recruitment-tab" class="tab-content hidden">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.143M9 16a4 4 0 00-4-4h4"></path></svg>
-                    Recruitment Pipeline (Housekeeping Focus)
-                </h2>
-                <div class="overflow-x-auto">
-                    <div id="kanban-board" class="flex space-x-6 pb-4 h-[700px]">
-                        <!-- Kanban Columns will be injected here -->
-                    </div>
-                </div>
-            </div>
-
-        </main>
-
-        <!-- Modal for Candidate Details (Hidden by default) -->
-        <div id="candidate-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden z-50 overflow-y-auto flex items-center justify-center">
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg m-4">
-                <div class="p-6">
-                    <div class="flex justify-between items-start mb-4">
-                        <h3 class="text-2xl font-bold text-gray-800" id="modal-candidate-name"></h3>
-                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
-                    </div>
-                    <div id="modal-candidate-details" class="space-y-3 text-gray-600">
-                        <p><span class="font-semibold text-gray-800">Email:</span> <span id="modal-candidate-email"></span></p>
-                        <p><span class="font-semibold text-gray-800">Role:</span> <span id="modal-candidate-role"></span></p>
-                        <p><span class="font-semibold text-gray-800">Status:</span> <span id="modal-candidate-status" class="px-3 py-1 text-sm font-semibold rounded-full"></span></p>
-                        <p><span class="font-semibold text-gray-800">Applied On:</span> <span id="modal-candidate-date"></span></p>
-                    </div>
-                    <div class="mt-6 pt-4 border-t border-gray-100">
-                        <button onclick="closeModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
+      <!-- Recruitment Kanban -->
+      <div id="recruitment-tab" class="tab-content hidden">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Recruitment Pipeline</h2>
+        <div class="overflow-x-auto">
+          <div id="kanban-board" class="flex space-x-6 pb-4 h-[700px]"></div>
         </div>
+      </div>
+    </main>
 
+    <!-- Candidate Modal -->
+    <div id="candidate-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden z-50 overflow-y-auto flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg m-4">
+        <div class="p-6">
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="text-2xl font-bold text-gray-800" id="modal-candidate-name"></h3>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </div>
+          <div id="modal-candidate-details" class="space-y-3 text-gray-600">
+            <p><span class="font-semibold text-gray-800">Email:</span> <span id="modal-candidate-email"></span></p>
+            <p><span class="font-semibold text-gray-800">Role:</span> <span id="modal-candidate-role"></span></p>
+            <p><span class="font-semibold text-gray-800">Status:</span> <span id="modal-candidate-status" class="px-3 py-1 text-sm font-semibold rounded-full"></span></p>
+            <p><span class="font-semibold text-gray-800">Applied On:</span> <span id="modal-candidate-date"></span></p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-gray-100">
+            <button onclick="closeModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">Close</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <script>
-        // --- Core Configuration and State ---
-        const API_KEY = ""; // Placeholder, the environment will inject the real key
-        const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
-        const MODEL_DATA = 'gemini-2.5-flash-preview-09-2025'; // For structured data simulation
-        const MODEL_INSIGHT = 'gemini-2.5-flash-preview-09-2025'; // For grounded insights
-        const kanbanStatuses = [
-            { name: 'Open', color: 'bg-indigo-100 text-indigo-700' },
-            { name: 'Screening', color: 'bg-yellow-100 text-yellow-700' },
-            { name: 'Interview', color: 'bg-blue-100 text-blue-700' },
-            { name: 'Offer', color: 'bg-green-100 text-green-700' },
-            { name: 'Hired', color: 'bg-gray-100 text-gray-700' }
-        ];
+  </div>
 
-        let dashboardData = { kpis: [], candidates: [] };
-        let currentUserId = 'Hotel-HR-Expert-80'; // Mock User ID
+  <script>
+    // 🔗 তোমার SheetDB URL এখানে বসাও:
+    const SHEETDB_URL = "https://sheetdb.io/api/v1/hsh1d2odhdz6c"; // <-- পরিবর্তন করো
 
-        // --- Utility Functions ---
+    let dashboardData = { kpis: [], candidates: [] };
+    const kanbanStatuses = [
+      { name: 'Open', color: 'bg-indigo-100 text-indigo-700' },
+      { name: 'Screening', color: 'bg-yellow-100 text-yellow-700' },
+      { name: 'Interview', color: 'bg-blue-100 text-blue-700' },
+      { name: 'Offer', color: 'bg-green-100 text-green-700' },
+      { name: 'Hired', color: 'bg-gray-100 text-gray-700' }
+    ];
 
-        /** Generates a simple trend indicator based on direction and color. */
-        const getTrendMarkup = (value, direction, color) => {
-            const isGood = color === 'green';
-            const icon = direction === 'up'
-                ? '<svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>'
-                : '<svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>';
-            
-            const textColor = isGood 
-                ? (direction === 'up' ? 'text-green-600' : 'text-red-600') 
-                : (direction === 'up' ? 'text-red-600' : 'text-green-600');
-            
-            return `
-                <span class="flex items-center text-sm font-semibold ${textColor}">
-                    ${value}${icon}
-                </span>
-            `;
-        };
-        
-        /** Converts date string to readable format. */
-        const formatDate = (dateStr) => {
-            if (!dateStr) return 'N/A';
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        };
+    const currentUserId = "Hotel-HR-Expert-80";
 
-        // --- API Interaction (Simulated Database / SheetDB) ---
+    function formatDate(dateStr) {
+      if (!dateStr) return 'N/A';
+      return new Date(dateStr).toLocaleDateString();
+    }
 
-        /**
-         * Simulates fetching operational data (KPIs and Candidates) from a structured source (like SheetDB).
-         * Uses the Gemini API to generate the structured JSON data based on a schema.
-         */
-        async function fetchStructuredDataWithRetry(maxRetries = 3) {
-            const systemPrompt = "You are a backend API for a hotel HR dashboard. Your sole purpose is to return a valid JSON object containing an array of current candidate records and an array of key performance indicator (KPI) metrics for a 76-room, 11-floor hotel with 80 employees. The candidate status must be one of: 'Open', 'Screening', 'Interview', 'Offer', 'Hired'. The KPI color must be 'green', 'red', or 'blue'. Do not add any text or explanation outside of the JSON structure.";
-            const userQuery = "Generate the current operational data including 10 candidate records focusing on Housekeeping, F&B, and Front Office roles, and the 16 most critical HR KPIs for a high-volume hotel environment (76 rooms, 80 staff).";
-            
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            kpis: {
-                                type: "ARRAY",
-                                items: {
-                                    type: "OBJECT",
-                                    properties: {
-                                        metric: { type: "STRING" },
-                                        value: { type: ["NUMBER", "STRING"] },
-                                        target: { type: ["NUMBER", "STRING"] },
-                                        unit: { type: "STRING" },
-                                        trend: { type: "STRING" },
-                                        direction: { type: "STRING", enum: ["up", "down"] },
-                                        color: { type: "STRING", enum: ["green", "red", "blue"] }
-                                    },
-                                    required: ["metric", "value", "target", "unit", "trend", "direction", "color"]
-                                }
-                            },
-                            candidates: {
-                                type: "ARRAY",
-                                items: {
-                                    type: "OBJECT",
-                                    properties: {
-                                        id: { type: "STRING" },
-                                        name: { type: "STRING" },
-                                        email: { type: "STRING" },
-                                        role: { type: "STRING" },
-                                        status: { type: "STRING", enum: ['Open', 'Screening', 'Interview', 'Offer', 'Hired'] },
-                                        appliedDate: { type: "STRING" }
-                                    },
-                                    required: ["id", "name", "email", "role", "status", "appliedDate"]
-                                }
-                            }
-                        },
-                        required: ["kpis", "candidates"]
-                    }
-                }
-            };
-            
-            const apiUrl = `${BASE_URL}${MODEL_DATA}:generateContent?key=${API_KEY}`;
-            let lastError = null;
+    // ✅ Fetch data from SheetDB (your Google Sheet)
+    async function fetchStructuredData() {
+      const response = await fetch(SHEETDB_URL);
+      const data = await response.json();
+      
+      // Expecting your sheet columns to be like:
+      // KPI Sheet: metric, value, target, unit, trend, direction, color
+      // Candidate Sheet: id, name, email, role, status, appliedDate
 
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
+      return {
+        kpis: data.filter(r => r.type === "kpi"),
+        candidates: data.filter(r => r.type === "candidate")
+      };
+    }
 
-                    const result = await response.json();
+    // Render KPI Cards
+    const renderKPICard = (kpi) => {
+      const progress = Math.min(100, (parseFloat(kpi.value) / parseFloat(kpi.target)) * 100);
+      const color = kpi.color || 'blue';
+      return `
+        <div class="card p-5 bg-white rounded-xl shadow-lg border border-gray-100">
+          <p class="text-sm font-medium text-gray-500 mb-1">${kpi.metric}</p>
+          <div class="flex justify-between items-end mb-3">
+            <h3 class="text-3xl font-extrabold text-gray-900">${kpi.value} <span class="text-lg font-semibold text-gray-500">${kpi.unit}</span></h3>
+            <span class="text-sm font-semibold text-${color}-600">${kpi.trend}</span>
+          </div>
+          <div class="h-2 bg-gray-200 rounded-full"><div class="h-full rounded-full bg-${color}-500" style="width:${progress}%"></div></div>
+        </div>`;
+    };
 
-                    if (!response.ok || !result.candidates || result.candidates.length === 0) {
-                         throw new Error(`API returned an unsuccessful response or empty candidates array: ${JSON.stringify(result)}`);
-                    }
+    const renderKPIs = () => {
+      document.getElementById("kpi-grid").innerHTML = dashboardData.kpis.map(renderKPICard).join('');
+    };
 
-                    // --- FIX START: Handle potential Markdown JSON wrapper ---
-                    let jsonText = result.candidates[0].content.parts[0].text.trim();
-                    
-                    // Check and remove leading markdown
-                    if (jsonText.startsWith('```json')) {
-                        jsonText = jsonText.substring('```json'.length).trim();
-                    }
-                    
-                    // Check and remove trailing markdown
-                    if (jsonText.endsWith('```')) {
-                        jsonText = jsonText.substring(0, jsonText.length - '```'.length).trim();
-                    }
-                    
-                    // The text passed to JSON.parse must be clean
-                    const parsedData = JSON.parse(jsonText);
-                    return parsedData;
-                    // --- FIX END ---
+    // Render Kanban
+    const renderRecruitmentBoard = () => {
+      const board = document.getElementById("kanban-board");
+      const grouped = dashboardData.candidates.reduce((acc, c) => {
+        acc[c.status] = acc[c.status] || [];
+        acc[c.status].push(c);
+        return acc;
+      }, {});
 
-                } catch (error) {
-                    lastError = error;
-                    console.error(`Attempt ${attempt + 1} failed:`, error);
-                    if (attempt < maxRetries - 1) {
-                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); // Exponential backoff
-                    }
-                }
-            }
+      board.innerHTML = kanbanStatuses.map(st => `
+        <div class="kanban-column bg-gray-50 p-4 rounded-xl shadow-inner border border-gray-200">
+          <h3 class="text-lg font-bold mb-4 text-gray-800">${st.name} <span class="ml-2 text-sm px-2 py-0.5 rounded-full ${st.color}">${(grouped[st.name] || []).length}</span></h3>
+          <div class="space-y-3 max-h-[600px] overflow-y-auto">
+            ${(grouped[st.name] || []).map(c => `
+              <div class="card bg-white p-4 rounded-xl shadow border border-gray-100 mb-3" onclick="openModal('${c.id}')">
+                <h4 class="text-md font-bold text-gray-800">${c.name}</h4>
+                <p class="text-sm text-gray-600">${c.role}</p>
+                <p class="text-xs text-gray-400">Applied: ${formatDate(c.appliedDate)}</p>
+              </div>`).join('') || `<p class='text-center text-sm text-gray-400 p-4 border border-dashed rounded-lg'>No candidates</p>`}
+          </div>
+        </div>`).join('');
+    };
 
-            throw new Error(`Failed to fetch structured data after ${maxRetries} attempts. Last error: ${lastError.message}`);
-        }
+    // Modal functions
+    function openModal(id) {
+      const c = dashboardData.candidates.find(x => x.id === id);
+      if (!c) return;
+      const modal = document.getElementById("candidate-modal");
+      document.getElementById("modal-candidate-name").textContent = c.name;
+      document.getElementById("modal-candidate-email").textContent = c.email;
+      document.getElementById("modal-candidate-role").textContent = c.role;
+      document.getElementById("modal-candidate-status").textContent = c.status;
+      document.getElementById("modal-candidate-date").textContent = formatDate(c.appliedDate);
+      modal.classList.remove("hidden");
+    }
 
-        /**
-         * Fetches an insightful analysis grounded in Google Search results.
-         * This demonstrates the "use of direction" from external, real-time data sources.
-         */
-        async function fetchGoogleInsightWithRetry(maxRetries = 3) {
-            const systemPrompt = "Act as a world-class hospitality HR consultant. Analyze the provided KPI data. Then, use Google Search to find current average hourly wages for entry-level hotel staff in the U.S. and provide a concise, single-paragraph analysis (max 5 sentences) comparing the dashboard's average wage of $18.50/hr against the current market trend. Do not mention your role or apologize.";
-            const userQuery = "Analyze the dashboard's average hourly wage KPI ($18.50/hr) against current market trends for hotel entry-level staff.";
+    function closeModal() {
+      document.getElementById("candidate-modal").classList.add("hidden");
+    }
 
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                tools: [{ "google_search": {} }],
-                systemInstruction: { parts: [{ text: systemPrompt }] }
-            };
+    function switchTab(tab) {
+      document.querySelectorAll(".tab-content").forEach(t => t.classList.add("hidden"));
+      document.querySelectorAll(".tab-button").forEach(t => t.classList.remove("active"));
+      document.getElementById(`${tab}-tab`).classList.remove("hidden");
+      document.getElementById(`tab-${tab}`).classList.add("active");
+    }
 
-            const apiUrl = `${BASE_URL}${MODEL_INSIGHT}:generateContent?key=${API_KEY}`;
-            let lastError = null;
+    async function initApp() {
+      document.getElementById("user-id").textContent = currentUserId;
+      document.getElementById("loading-state").classList.remove("hidden");
 
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    const result = await response.json();
-                    
-                    if (!response.ok || !result.candidates || result.candidates.length === 0) {
-                        throw new Error(`API returned an unsuccessful response or empty candidates array: ${JSON.stringify(result)}`);
-                    }
-
-                    const text = result.candidates[0].content.parts[0].text;
-                    let sources = [];
-                    const groundingMetadata = result.candidates[0].groundingMetadata;
-
-                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
-                        sources = groundingMetadata.groundingAttributions
-                            .map(attr => ({
-                                uri: attr.web?.uri,
-                                title: attr.web?.title
-                            }))
-                            .filter(source => source.uri && source.title);
-                    }
-                    
-                    return { text, sources };
-
-                } catch (error) {
-                    lastError = error;
-                    console.error(`Attempt ${attempt + 1} failed:`, error);
-                    if (attempt < maxRetries - 1) {
-                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); // Exponential backoff
-                    }
-                }
-            }
-            throw new Error(`Failed to fetch grounded insight after ${maxRetries} attempts. Last error: ${lastError.message}`);
-        }
-
-        // --- Rendering Functions ---
-
-        /** Renders a single KPI card. */
-        const renderKPICard = (kpi) => {
-            const { metric, value, target, unit, trend, direction, color } = kpi;
-            
-            // Determine if higher value is better (e.g., Score, Compliance) or lower is better (e.g., Time, Cost, Attrition)
-            let isGood = color === 'green' ? true : (color === 'red' ? false : null);
-            let isTrendPositive;
-
-            if (isGood !== null) {
-                 // For 'green' (good), 'up' trend is usually better, but 'down' trend is better for costs/times.
-                 // We use the 'color' property from the Gemini API to determine if the current value is good/bad
-                 // and simplify the trend direction classing based on that.
-                 isTrendPositive = (color === 'green' && direction === 'up') || (color === 'red' && direction === 'down');
-            } else {
-                 isTrendPositive = direction === 'up'; // Neutral KPIs
-            }
-
-
-            const trendClass = isTrendPositive ? 'text-green-600' : 'text-red-600';
-            const progressColor = color === 'green' ? 'bg-green-500' : (color === 'red' ? 'bg-red-500' : 'bg-blue-500');
-
-            // Calculate progress for numeric values only
-            const numericValue = parseFloat(value);
-            const numericTarget = parseFloat(target);
-            let progress = 0;
-            const isNumeric = !isNaN(numericValue) && !isNaN(numericTarget);
-            
-            if (isNumeric) {
-                if (color === 'green') {
-                    // Assuming higher is better for Green unless explicitly a cost metric
-                    progress = Math.min(100, (numericValue / numericTarget) * 100);
-                } else if (color === 'red') {
-                    // Assuming lower is better relative to target (e.g. 35% actual turnover vs 30% target)
-                    progress = Math.min(100, (numericTarget / numericValue) * 100);
-                } else {
-                    progress = Math.min(100, (numericValue / (numericTarget * 1.5)) * 100);
-                }
-            }
-
-
-            return `
-                <div class="card p-5 bg-white rounded-xl shadow-lg border border-gray-100">
-                    <p class="text-sm font-medium text-gray-500 mb-1">${metric}</p>
-                    <div class="flex justify-between items-end mb-3">
-                        <h3 class="text-3xl font-extrabold text-gray-900 leading-none">
-                            ${value}
-                            <span class="text-lg font-semibold ml-1 text-gray-500">${unit}</span>
-                        </h3>
-                        ${getTrendMarkup(trend, direction, progressColor)}
-                    </div>
-
-                    <div class="text-xs text-gray-500 mb-2 flex justify-between">
-                        <span>Target: ${target} ${unit}</span>
-                        <span>${isNumeric ? Math.round(progress) : 'N/A'}%</span>
-                    </div>
-
-                    <div class="h-2 bg-gray-200 rounded-full">
-                        <div
-                            class="h-full rounded-full ${progressColor}"
-                            style="width: ${isNumeric ? Math.min(100, progress) : 100}%;"
-                        ></div>
-                    </div>
-                </div>
-            `;
-        };
-
-        /** Renders all KPI cards. */
-        const renderKPIs = () => {
-            const kpiGrid = document.getElementById('kpi-grid');
-            kpiGrid.innerHTML = dashboardData.kpis.map(renderKPICard).join('');
-        };
-
-        /** Renders a single candidate card for Kanban. */
-        const renderCandidateCard = (candidate) => {
-            return `
-                <div class="card bg-white p-4 rounded-xl shadow border border-gray-100 mb-3" onclick="openModal('${candidate.id}')">
-                    <h4 class="text-md font-bold text-gray-800 truncate">${candidate.name}</h4>
-                    <p class="text-sm text-gray-600 mt-1">${candidate.role}</p>
-                    <p class="text-xs text-gray-400 mt-1">Applied: ${formatDate(candidate.appliedDate)}</p>
-                </div>
-            `;
-        };
-
-        /** Renders the full Kanban board. */
-        const renderRecruitmentBoard = () => {
-            const kanbanBoard = document.getElementById('kanban-board');
-            kanbanBoard.innerHTML = ''; // Clear previous
-
-            // Group candidates by status
-            const groupedCandidates = dashboardData.candidates.reduce((acc, candidate) => {
-                const status = candidate.status || 'Open';
-                if (!acc[status]) acc[status] = [];
-                acc[status].push(candidate);
-                return acc;
-            }, {});
-
-            kanbanStatuses.forEach(statusCol => {
-                const candidates = groupedCandidates[statusCol.name] || [];
-                
-                const columnHtml = `
-                    <div class="kanban-column flex-shrink-0 bg-gray-50 p-4 rounded-xl shadow-inner border border-gray-200">
-                        <h3 class="text-lg font-bold flex items-center mb-4 text-gray-800">
-                            <span class="mr-2 w-3 h-3 rounded-full ${statusCol.color.replace('text-', 'bg-')}"></span>
-                            ${statusCol.name}
-                            <span class="ml-2 text-sm font-semibold px-2 py-0.5 rounded-full ${statusCol.color}">${candidates.length}</span>
-                        </h3>
-                        <div class="space-y-3 overflow-y-auto max-h-[600px] pr-2">
-                            ${candidates.map(renderCandidateCard).join('')}
-                            ${candidates.length === 0 ? `<p class="text-center text-sm text-gray-400 p-4 border border-dashed rounded-lg">No candidates here.</p>` : ''}
-                        </div>
-                    </div>
-                `;
-                kanbanBoard.innerHTML += columnHtml;
-            });
-        };
-
-        /** Displays the grounded insight and sources. */
-        const renderGoogleInsight = (data) => {
-            const container = document.getElementById('google-insight-container');
-            let sourceList = '';
-
-            if (data.sources && data.sources.length > 0) {
-                sourceList = `<p class="text-xs font-semibold mt-4 text-blue-800">Sources:</p><ul class="list-disc list-inside text-xs text-blue-700 space-y-1">` +
-                    data.sources.slice(0, 3).map(s =>
-                        `<li><a href="${s.uri}" target="_blank" class="hover:underline">${s.title}</a></li>`
-                    ).join('') +
-                    `</ul>`;
-            }
-
-            container.innerHTML = `
-                <div class="p-4 bg-white rounded-lg shadow-inner">
-                    <p class="text-gray-700 leading-relaxed">${data.text}</p>
-                    ${sourceList}
-                </div>
-            `;
-        };
-        
-        // --- Modal & Interaction Functions ---
-
-        /** Opens the candidate detail modal. */
-        const openModal = (id) => {
-            const candidate = dashboardData.candidates.find(c => c.id === id);
-            if (!candidate) return;
-
-            const modal = document.getElementById('candidate-modal');
-            const statusInfo = kanbanStatuses.find(s => s.name === candidate.status) || kanbanStatuses[0];
-            
-            document.getElementById('modal-candidate-name').textContent = candidate.name;
-            document.getElementById('modal-candidate-email').textContent = candidate.email;
-            document.getElementById('modal-candidate-role').textContent = candidate.role;
-            document.getElementById('modal-candidate-date').textContent = formatDate(candidate.appliedDate);
-
-            const statusSpan = document.getElementById('modal-candidate-status');
-            statusSpan.textContent = candidate.status;
-            statusSpan.className = `px-3 py-1 text-sm font-semibold rounded-full ${statusInfo.color}`;
-
-            modal.classList.remove('hidden');
-        };
-
-        /** Closes the candidate detail modal. */
-        const closeModal = () => {
-            document.getElementById('candidate-modal').classList.add('hidden');
-        };
-
-        /** Handles tab switching. */
-        const switchTab = (tabKey) => {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
-
-            document.getElementById(`${tabKey}-tab`).classList.remove('hidden');
-            document.getElementById(`tab-${tabKey}`).classList.add('active');
-        };
-
-        // --- Initialization ---
-
-        async function initApp() {
-            // Display User ID
-            document.getElementById('user-id').textContent = currentUserId;
-            
-            document.getElementById('loading-state').classList.remove('hidden');
-            document.getElementById('error-state').classList.add('hidden');
-
-            try {
-                // 1. Fetch Structured Operational Data (Simulated SheetDB)
-                const data = await fetchStructuredDataWithRetry();
-                dashboardData.kpis = data.kpis;
-                dashboardData.candidates = data.candidates;
-                
-                // 2. Render all operational data
-                renderKPIs();
-                renderRecruitmentBoard();
-                
-                // 3. Fetch Grounded Insight (Simulated Google Search for "Direction")
-                const insightData = await fetchGoogleInsightWithRetry();
-                renderGoogleInsight(insightData);
-
-            } catch (err) {
-                console.error("Dashboard failed to initialize:", err);
-                document.getElementById('error-message').textContent = `Initialization failed. Check console for details. Error: ${err.message}`;
-                document.getElementById('error-state').classList.remove('hidden');
-                // Ensure tabs are hidden if initialization fails
-                document.getElementById('performance-tab').classList.add('hidden');
-                document.getElementById('recruitment-tab').classList.add('hidden');
-            } finally {
-                document.getElementById('loading-state').classList.add('hidden');
-                // Ensure initial tab is visible after loading
-                switchTab('performance');
-            }
-        }
-    </script>
+      try {
+        const data = await fetchStructuredData();
+        dashboardData = data;
+        renderKPIs();
+        renderRecruitmentBoard();
+      } catch (err) {
+        document.getElementById("error-message").textContent = err.message;
+        document.getElementById("error-state").classList.remove("hidden");
+      } finally {
+        document.getElementById("loading-state").classList.add("hidden");
+      }
+    }
+  </script>
 </body>
 </html>
