@@ -1,205 +1,925 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>76-Room Hotel HR Analytics Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
-    .tab-button.active { border-bottom-width: 3px; border-color: #2563eb; color: #2563eb; }
-    .kanban-column { min-width: 320px; max-width: 320px; height: 100%; }
-    .card { transition: all 0.3s ease; cursor: pointer; }
-    .card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-    .spinner { border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
-</head>
-<body onload="initApp()">
-  <div id="app" class="min-h-screen">
-
-    <header class="bg-white shadow-md sticky top-0 z-20">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <h1 class="text-3xl font-extrabold text-gray-900">
-          <span class="text-blue-600">Hotel HR</span> Analytics
-        </h1>
-        <p class="text-sm text-gray-500">76 Rooms | 80 Employees | User: <span id="user-id">Loading...</span></p>
-
-        <nav class="mt-4 border-b border-gray-200">
-          <div class="flex space-x-4 overflow-x-auto whitespace-nowrap pb-1">
-            <button id="tab-performance" class="tab-button active flex items-center px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-colors" onclick="switchTab('performance')">Key Metrics</button>
-            <button id="tab-recruitment" class="tab-button flex items-center px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-colors" onclick="switchTab('recruitment')">Recruitment Pipeline</button>
-          </div>
-        </nav>
-      </div>
-    </header>
-
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div id="loading-state" class="p-8 text-center text-xl text-blue-600 font-semibold flex flex-col items-center justify-center hidden">
-        <div class="spinner mb-4"></div>
-        Fetching Hotel HR Data from SheetDB...
-      </div>
-      <div id="error-state" class="p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg hidden" role="alert">
-        <p class="font-bold">Data Error</p>
-        <p id="error-message">Could not fetch data.</p>
-      </div>
-
-      <!-- KPI Section -->
-      <div id="performance-tab" class="tab-content">
-        <div id="kpi-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
-      </div>
-
-      <!-- Recruitment Kanban -->
-      <div id="recruitment-tab" class="tab-content hidden">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">Recruitment Pipeline</h2>
-        <div class="overflow-x-auto">
-          <div id="kanban-board" class="flex space-x-6 pb-4 h-[700px]"></div>
-        </div>
-      </div>
-    </main>
-
-    <!-- Candidate Modal -->
-    <div id="candidate-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden z-50 overflow-y-auto flex items-center justify-center">
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg m-4">
-        <div class="p-6">
-          <div class="flex justify-between items-start mb-4">
-            <h3 class="text-2xl font-bold text-gray-800" id="modal-candidate-name"></h3>
-            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
-          </div>
-          <div id="modal-candidate-details" class="space-y-3 text-gray-600">
-            <p><span class="font-semibold text-gray-800">Email:</span> <span id="modal-candidate-email"></span></p>
-            <p><span class="font-semibold text-gray-800">Role:</span> <span id="modal-candidate-role"></span></p>
-            <p><span class="font-semibold text-gray-800">Status:</span> <span id="modal-candidate-status" class="px-3 py-1 text-sm font-semibold rounded-full"></span></p>
-            <p><span class="font-semibold text-gray-800">Applied On:</span> <span id="modal-candidate-date"></span></p>
-          </div>
-          <div class="mt-6 pt-4 border-t border-gray-100">
-            <button onclick="closeModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <script>
-    // 🔗 তোমার SheetDB URL এখানে বসাও:
-    const SHEETDB_URL = "https://sheetdb.io/api/v1/hsh1d2odhdz6c"; // <-- পরিবর্তন করো
-
-    let dashboardData = { kpis: [], candidates: [] };
-    const kanbanStatuses = [
-      { name: 'Open', color: 'bg-indigo-100 text-indigo-700' },
-      { name: 'Screening', color: 'bg-yellow-100 text-yellow-700' },
-      { name: 'Interview', color: 'bg-blue-100 text-blue-700' },
-      { name: 'Offer', color: 'bg-green-100 text-green-700' },
-      { name: 'Hired', color: 'bg-gray-100 text-gray-700' }
-    ];
-
-    const currentUserId = "Hotel-HR-Expert-80";
-
-    function formatDate(dateStr) {
-      if (!dateStr) return 'N/A';
-      return new Date(dateStr).toLocaleDateString();
-    }
-
-    // ✅ Fetch data from SheetDB (your Google Sheet)
-    async function fetchStructuredData() {
-      const response = await fetch(SHEETDB_URL);
-      const data = await response.json();
-      
-      // Expecting your sheet columns to be like:
-      // KPI Sheet: metric, value, target, unit, trend, direction, color
-      // Candidate Sheet: id, name, email, role, status, appliedDate
-
-      return {
-        kpis: data.filter(r => r.type === "kpi"),
-        candidates: data.filter(r => r.type === "candidate")
-      };
-    }
-
-    // Render KPI Cards
-    const renderKPICard = (kpi) => {
-      const progress = Math.min(100, (parseFloat(kpi.value) / parseFloat(kpi.target)) * 100);
-      const color = kpi.color || 'blue';
-      return `
-        <div class="card p-5 bg-white rounded-xl shadow-lg border border-gray-100">
-          <p class="text-sm font-medium text-gray-500 mb-1">${kpi.metric}</p>
-          <div class="flex justify-between items-end mb-3">
-            <h3 class="text-3xl font-extrabold text-gray-900">${kpi.value} <span class="text-lg font-semibold text-gray-500">${kpi.unit}</span></h3>
-            <span class="text-sm font-semibold text-${color}-600">${kpi.trend}</span>
-          </div>
-          <div class="h-2 bg-gray-200 rounded-full"><div class="h-full rounded-full bg-${color}-500" style="width:${progress}%"></div></div>
-        </div>`;
-    };
-
-    const renderKPIs = () => {
-      document.getElementById("kpi-grid").innerHTML = dashboardData.kpis.map(renderKPICard).join('');
-    };
-
-    // Render Kanban
-    const renderRecruitmentBoard = () => {
-      const board = document.getElementById("kanban-board");
-      const grouped = dashboardData.candidates.reduce((acc, c) => {
-        acc[c.status] = acc[c.status] || [];
-        acc[c.status].push(c);
-        return acc;
-      }, {});
-
-      board.innerHTML = kanbanStatuses.map(st => `
-        <div class="kanban-column bg-gray-50 p-4 rounded-xl shadow-inner border border-gray-200">
-          <h3 class="text-lg font-bold mb-4 text-gray-800">${st.name} <span class="ml-2 text-sm px-2 py-0.5 rounded-full ${st.color}">${(grouped[st.name] || []).length}</span></h3>
-          <div class="space-y-3 max-h-[600px] overflow-y-auto">
-            ${(grouped[st.name] || []).map(c => `
-              <div class="card bg-white p-4 rounded-xl shadow border border-gray-100 mb-3" onclick="openModal('${c.id}')">
-                <h4 class="text-md font-bold text-gray-800">${c.name}</h4>
-                <p class="text-sm text-gray-600">${c.role}</p>
-                <p class="text-xs text-gray-400">Applied: ${formatDate(c.appliedDate)}</p>
-              </div>`).join('') || `<p class='text-center text-sm text-gray-400 p-4 border border-dashed rounded-lg'>No candidates</p>`}
-          </div>
-        </div>`).join('');
-    };
-
-    // Modal functions
-    function openModal(id) {
-      const c = dashboardData.candidates.find(x => x.id === id);
-      if (!c) return;
-      const modal = document.getElementById("candidate-modal");
-      document.getElementById("modal-candidate-name").textContent = c.name;
-      document.getElementById("modal-candidate-email").textContent = c.email;
-      document.getElementById("modal-candidate-role").textContent = c.role;
-      document.getElementById("modal-candidate-status").textContent = c.status;
-      document.getElementById("modal-candidate-date").textContent = formatDate(c.appliedDate);
-      modal.classList.remove("hidden");
-    }
-
-    function closeModal() {
-      document.getElementById("candidate-modal").classList.add("hidden");
-    }
-
-    function switchTab(tab) {
-      document.querySelectorAll(".tab-content").forEach(t => t.classList.add("hidden"));
-      document.querySelectorAll(".tab-button").forEach(t => t.classList.remove("active"));
-      document.getElementById(`${tab}-tab`).classList.remove("hidden");
-      document.getElementById(`tab-${tab}`).classList.add("active");
-    }
-
-    async function initApp() {
-      document.getElementById("user-id").textContent = currentUserId;
-      document.getElementById("loading-state").classList.remove("hidden");
-
-      try {
-        const data = await fetchStructuredData();
-        dashboardData = data;
-        renderKPIs();
-        renderRecruitmentBoard();
-      } catch (err) {
-        document.getElementById("error-message").textContent = err.message;
-        document.getElementById("error-state").classList.remove("hidden");
-      } finally {
-        document.getElementById("loading-state").classList.add("hidden");
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HR Performance Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background-color: #f7f9fb;
       }
-    }
-  </script>
-</body>
+      .card-shadow {
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen" id="top">
+    <div id="root"></div>
+
+    <!-- React & Babel (for rapid prototyping in a single file) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+    <!-- Charts -->
+    <script crossorigin src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+    <!-- PDF export helpers -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script type="text/babel">
+      const {
+        useState,
+        useRef,
+      } = React;
+
+      const {
+        ResponsiveContainer,
+        PieChart,
+        Pie,
+        Cell,
+        BarChart,
+        Bar,
+        XAxis,
+        YAxis,
+        CartesianGrid,
+        Tooltip,
+        Legend,
+        LineChart,
+        Line,
+        ScatterChart,
+        Scatter,
+      } = Recharts;
+
+      const IconBadge = ({ label, color = "text-indigo-600", emoji }) => (
+        <span
+          className={`inline-flex items-center justify-center w-6 h-6 text-sm font-bold rounded-full ${color}`}
+          aria-hidden="true"
+        >
+          {emoji || "•"}
+        </span>
+      );
+
+      const convertToCsv = (obj) => {
+        const data = Object.entries(obj).map(([key, value]) => ({
+          Metric: key,
+          Value: JSON.stringify(value),
+        }));
+        const headers = ["Metric", "Value"];
+        return [
+          headers.join(","),
+          ...data.map((row) => headers.map((header) => row[header]).join(",")),
+        ].join("\n");
+      };
+
+      const demoData = {
+        totalManpower: { male: 1500, female: 1000 },
+        recruitment: {
+          male: { count: 180, conversionRate: 0.18, target: 150 },
+          female: { count: 120, conversionRate: 0.2, target: 100 },
+        },
+        recruitmentPerformance: {
+          timeToFillDays: 35,
+          timeToHireDays: 22,
+          costPerHire: 5500,
+          offerAcceptanceRate: 0.92,
+          vacancyRate: 0.04,
+          firstYearTurnover: 0.08,
+          firstMonthTurnover: 0.01,
+          sourceEffectiveness: [
+            { source: "LinkedIn", cph: 4500, hires: 50 },
+            { source: "Referral", cph: 2000, hires: 80 },
+            { source: "Job Board", cph: 6500, hires: 40 },
+          ],
+        },
+        promotions: {
+          male: { count: 50, daysToPromotion: 985 },
+          female: { count: 35, daysToPromotion: 850 },
+        },
+        retention: {
+          monthly: { male: 0.98, female: 0.99 },
+          yearly: { male: 0.85, female: 0.9 },
+        },
+        resignations: {
+          voluntary: {
+            male: {
+              count: 45,
+              reasons: {
+                "Career Growth": 20,
+                "Work-life Balance": 15,
+                "Better Offer": 10,
+              },
+            },
+            female: {
+              count: 25,
+              reasons: {
+                "Work-life Balance": 10,
+                "Career Growth": 8,
+                "Personal Reasons": 7,
+              },
+            },
+          },
+          involuntary: { male: 20, female: 10 },
+        },
+        grievances: { male: 15, female: 5 },
+        flexibleWork: { male: 250, female: 400 },
+        exitInterviewOutcomes: { male: 40, female: 22 },
+        historical: {
+          turnoverTrends: [
+            { period: "Q1 2024", voluntaryRate: 3.2, involuntaryRate: 1.0, promotionRate: 2.0, retentionRate: 95.8 },
+            { period: "Q2 2024", voluntaryRate: 3.0, involuntaryRate: 0.8, promotionRate: 2.5, retentionRate: 96.2 },
+            { period: "Q3 2024", voluntaryRate: 4.5, involuntaryRate: 1.5, promotionRate: 3.0, retentionRate: 94.0 },
+            { period: "Q4 2024", voluntaryRate: 3.8, involuntaryRate: 1.2, promotionRate: 2.8, retentionRate: 95.0 },
+          ],
+        },
+        financials: {
+          totalRevenue: 50000000,
+          netProfit: 8000000,
+          totalLaborCost: 15000000,
+        },
+        operational: {
+          totalScheduledWorkingDays: 250 * 2500,
+          totalAbsenteeDays: 5500,
+          avgDailyWage: 200,
+          totalScheduledHours: 2500 * 2080,
+          totalOvertimeHours: 150000,
+          totalOvertimePay: 4000000,
+          totalBaseSalary: 11000000,
+        },
+        training: {
+          totalTrainingCost: 1250000,
+          trainingBenefit: 2500000,
+        },
+      };
+
+      const KeyInsights = ({ metrics }) => {
+        const {
+          maleManpowerPct,
+          femaleManpowerPct,
+          voluntaryTurnoverPct,
+          promotionRate,
+          laborCostPctOfRevenue,
+          offerAcceptanceRate,
+          firstYearTurnover,
+        } = metrics;
+
+        const entries = [
+          {
+            emoji: "👥",
+            text: `Workforce is ${maleManpowerPct.toFixed(0)}% Male and ${femaleManpowerPct.toFixed(0)}% Female.`,
+            accent: "bg-indigo-50 text-indigo-700",
+          },
+          {
+            emoji: "🤝",
+            text: `Offer Acceptance Rate is ${offerAcceptanceRate.toFixed(1)}%. First-Year Turnover is ${firstYearTurnover.toFixed(1)}%.` +
+              (firstYearTurnover > 10
+                ? " Hiring quality risk: turnover exceeds benchmark."
+                : " Hiring quality is strong."),
+            accent: "bg-blue-50 text-blue-700",
+          },
+          {
+            emoji: "🎯",
+            text: `Voluntary turnover is ${voluntaryTurnoverPct.toFixed(2)}% (Target <15%). Promotion rate is ${promotionRate.toFixed(2)}% (Target >10%).`,
+            accent: "bg-fuchsia-50 text-fuchsia-700",
+          },
+          {
+            emoji: "💰",
+            text: `Labor cost is ${laborCostPctOfRevenue.toFixed(1)}% of total revenue.`,
+            accent: "bg-red-50 text-red-700",
+          },
+        ];
+
+        return (
+          <div className="bg-white p-6 rounded-xl card-shadow border border-gray-100 mb-8">
+            <h2 className="text-2xl font-extrabold text-teal-700 flex items-center mb-4">
+              <IconBadge emoji="📌" color="text-teal-600" />
+              <span className="ml-2">Key Insights &amp; Summary</span>
+            </h2>
+            <div className="grid md:grid-cols-2 gap-4 text-gray-700">
+              {entries.map((item, idx) => (
+                <p key={idx} className={`p-3 rounded-lg shadow-inner ${item.accent}`}>
+                  <span className="mr-2" aria-hidden="true">{item.emoji}</span>
+                  {item.text}
+                </p>
+              ))}
+            </div>
+          </div>
+        );
+      };
+
+      const KPIcard = ({ title, value, unit = "", colorClass = "text-indigo-600", format = "number", target }) => {
+        let displayValue;
+        const numValue = typeof value === "number" ? value : 0;
+
+        if (format === "currency") {
+          displayValue = `$${(numValue / 1000).toFixed(numValue >= 1000000 ? 1 : 0)}${numValue >= 1000000 ? "M" : "k"}`;
+        } else if (format === "percent") {
+          displayValue = numValue.toFixed(numValue % 1 === 0 ? 0 : 2);
+        } else {
+          displayValue = numValue.toFixed(numValue % 1 === 0 ? 0 : 0);
+        }
+
+        let targetClass = "";
+        if (target !== undefined) {
+          if (title.includes("Turnover") || title.includes("Time to")) {
+            targetClass = numValue <= target ? "text-green-600" : "text-red-500";
+          } else if (title.includes("Rate") || title.includes("ROI")) {
+            targetClass = numValue >= target ? "text-green-600" : "text-red-500";
+          }
+        }
+
+        return (
+          <div className="bg-white p-5 rounded-xl card-shadow border-t-4 border-indigo-500">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{title}</h3>
+              <IconBadge emoji="★" color={colorClass} />
+            </div>
+            <p className="text-3xl font-extrabold text-gray-900">
+              {displayValue}
+              {unit}
+            </p>
+            {target !== undefined && (
+              <p className={`text-sm mt-1 font-semibold flex items-center ${targetClass}`}>
+                <span className="mr-1">🎯</span>
+                {title.includes("Turnover") || title.includes("Time to") ? "Target: <" : "Target: >"} {target}
+                {unit}
+              </p>
+            )}
+          </div>
+        );
+      };
+
+      const ChartContainer = ({ title, description, children }) => (
+        <div className="bg-white p-6 rounded-xl card-shadow border border-gray-100 h-96 flex flex-col">
+          <h3 className="text-lg font-bold text-gray-800">{title}</h3>
+          {description && <p className="text-xs text-gray-500 mb-2">{description}</p>}
+          <div className="flex-grow min-h-0">{children}</div>
+        </div>
+      );
+
+      const App = () => {
+        const [data, setData] = useState(demoData);
+        const [isEditing, setIsEditing] = useState(false);
+        const [formData, setFormData] = useState(demoData);
+        const dashboardRef = useRef(null);
+
+        const totalManpower = (data.totalManpower?.male || 0) + (data.totalManpower?.female || 0);
+        const maleManpowerPct = totalManpower > 0 ? (data.totalManpower?.male / totalManpower) * 100 : 0;
+        const femaleManpowerPct = totalManpower > 0 ? (data.totalManpower?.female / totalManpower) * 100 : 0;
+        const totalRecruitment = (data.recruitment?.male?.count || 0) + (data.recruitment?.female?.count || 0);
+        const recruitmentRatio = (data.recruitment?.male?.count || 0) / (data.recruitment?.female?.count || 1);
+
+        const totalVoluntaryExits =
+          (data.resignations?.voluntary?.male?.count || 0) + (data.resignations?.voluntary?.female?.count || 0);
+        const totalInvoluntaryExits = (data.resignations?.involuntary?.male || 0) + (data.resignations?.involuntary?.female || 0);
+        const totalResignations = totalVoluntaryExits + totalInvoluntaryExits;
+
+        const voluntaryTurnoverPct = totalManpower > 0 ? (totalVoluntaryExits / totalManpower) * 100 : 0;
+        const involuntaryTurnoverPct = totalManpower > 0 ? (totalInvoluntaryExits / totalManpower) * 100 : 0;
+        const totalPromotions = (data.promotions?.male?.count || 0) + (data.promotions?.female?.count || 0);
+        const promotionRate = totalManpower > 0 ? (totalPromotions / totalManpower) * 100 : 0;
+        const avgTimeToPromotionOverallDays =
+          totalPromotions > 0
+            ? ((data.promotions?.male?.count || 0) * (data.promotions?.male?.daysToPromotion || 0) +
+                (data.promotions?.female?.count || 0) * (data.promotions?.female?.daysToPromotion || 0)) /
+              totalPromotions
+            : 0;
+
+        const timeToFillDays = data.recruitmentPerformance?.timeToFillDays || 0;
+        const costPerHire = data.recruitmentPerformance?.costPerHire || 0;
+        const offerAcceptanceRate = (data.recruitmentPerformance?.offerAcceptanceRate || 0) * 100;
+        const vacancyRate = (data.recruitmentPerformance?.vacancyRate || 0) * 100;
+        const firstYearTurnover = (data.recruitmentPerformance?.firstYearTurnover || 0) * 100;
+        const yieldRatio = (data.recruitmentPerformance?.yieldRatio || 0) * 100;
+
+        const totalFTE = totalManpower;
+        const totalScheduledWorkingDays = data.operational?.totalScheduledWorkingDays || 1;
+        const revenuePerFTE = totalFTE > 0 ? (data.financials?.totalRevenue || 0) / totalFTE : 0;
+        const profitPerFTE = totalFTE > 0 ? (data.financials?.netProfit || 0) / totalFTE : 0;
+        const laborCostPctOfRevenue = (data.financials?.totalRevenue || 0) > 0
+          ? ((data.financials?.totalLaborCost || 0) / (data.financials?.totalRevenue || 1)) * 100
+          : 0;
+        const absenceRate = totalScheduledWorkingDays > 0
+          ? ((data.operational?.totalAbsenteeDays || 0) / totalScheduledWorkingDays) * 100
+          : 0;
+        const trainingROI = (data.training?.totalTrainingCost || 0) > 0
+          ? (((data.training?.trainingBenefit || 0) - (data.training?.totalTrainingCost || 0)) /
+              (data.training?.totalTrainingCost || 1)) * 100
+          : 0;
+
+        const calculatedMetrics = {
+          totalManpower,
+          maleManpowerPct,
+          femaleManpowerPct,
+          totalRecruitment,
+          recruitmentRatio,
+          totalResignations,
+          voluntaryTurnoverPct,
+          involuntaryTurnoverPct,
+          totalPromotions,
+          promotionRate,
+          avgTimeToPromotionOverallDays,
+          timeToFillDays,
+          costPerHire,
+          offerAcceptanceRate,
+          vacancyRate,
+          firstYearTurnover,
+          yieldRatio,
+          totalFTE,
+          revenuePerFTE,
+          profitPerFTE,
+          laborCostPctOfRevenue,
+          absenceRate,
+          trainingROI,
+          totalVoluntaryExits,
+        };
+
+        const resignationReasonChartData = Object.entries({
+          ...(data.resignations?.voluntary?.male?.reasons || {}),
+          ...(data.resignations?.voluntary?.female?.reasons || {}),
+        })
+          .map(([reason]) => ({
+            reason,
+            Male: data.resignations?.voluntary?.male?.reasons[reason] || 0,
+            Female: data.resignations?.voluntary?.female?.reasons[reason] || 0,
+            Total:
+              (data.resignations?.voluntary?.male?.reasons[reason] || 0) +
+              (data.resignations?.voluntary?.female?.reasons[reason] || 0),
+          }))
+          .sort((a, b) => b.Total - a.Total);
+
+        const turnoverTrendsChartData = data.historical?.turnoverTrends || [];
+        const latestTrend = turnoverTrendsChartData[turnoverTrendsChartData.length - 1] || {};
+        const sourceEffectivenessData = data.recruitmentPerformance?.sourceEffectiveness || [];
+
+        const handleInputChange = (e, category, key1, key2) => {
+          const { value, name } = e.target;
+          setFormData((prev) => {
+            const isRate = name && (name.includes("Rate") || name.includes("Turnover") || name.includes("Ratio"));
+            let numValue = Number(value);
+            if (isRate && numValue > 1) {
+              numValue = numValue / 100;
+            }
+
+            const newData = { ...prev };
+            if (category === "totalManpower" && key1) {
+              newData[category] = { ...newData[category], [key1]: Number(value) };
+            } else if (category === "financials" && name) {
+              newData[category] = { ...newData[category], [name]: Number(value) };
+            } else if (category === "recruitmentPerformance" && name) {
+              newData[category] = { ...newData[category], [name]: numValue };
+            } else if (category === "promotions" && key1 && key2) {
+              newData[category] = {
+                ...newData[category],
+                [key1]: {
+                  ...newData[category][key1],
+                  [key2]: Number(value),
+                },
+              };
+            } else if (category === "resignations" && key1 && key2) {
+              if (key1 === "voluntary") {
+                newData.resignations.voluntary[key2] = {
+                  ...newData.resignations.voluntary[key2],
+                  count: Number(value),
+                };
+              } else if (key1 === "involuntary") {
+                newData.resignations.involuntary[key2] = Number(value);
+              }
+            } else if (category === "historical" && key1 === "turnoverTrends" && key2) {
+              const trends = [...newData.historical.turnoverTrends];
+              const lastIndex = trends.length - 1;
+              if (lastIndex >= 0) {
+                trends[lastIndex] = { ...trends[lastIndex], [key2]: Number(value) };
+                newData.historical.turnoverTrends = trends;
+              }
+            }
+            return newData;
+          });
+        };
+
+        const handleUpdateData = () => {
+          setData(formData);
+          setIsEditing(false);
+        };
+
+        const exportPdf = async () => {
+          const { jsPDF } = window.jspdf || {};
+          if (!window.html2canvas || !jsPDF) {
+            alert("PDF export libraries are not loaded.");
+            return;
+          }
+          const dashboardElement = dashboardRef.current;
+          if (dashboardElement) {
+            const canvas = await window.html2canvas(dashboardElement, { scale: 2, useCORS: true });
+            const imgData = canvas.toDataURL("image/png");
+            const pdf = new jsPDF("p", "mm", "a4");
+            const imgWidth = 210;
+            const pageHeight = 295;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft > 0) {
+              position = heightLeft - imgHeight;
+              pdf.addPage();
+              pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+              heightLeft -= pageHeight;
+            }
+
+            pdf.save("hr-dashboard-report.pdf");
+          }
+        };
+
+        const exportCsv = () => {
+          const csvData = convertToCsv(data);
+          const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.setAttribute("href", url);
+          link.setAttribute("download", "hr-dashboard-data.csv");
+          link.style.visibility = "hidden";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+
+        const handleFileUpload = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            try {
+              const text = event.target.result;
+              const lines = text.split("\n").filter((line) => line.trim() !== "");
+              const newData = {};
+              lines.slice(1).forEach((line) => {
+                const [key, valueStr] = line.split(/,(.*)/s);
+                if (key && valueStr) {
+                  try {
+                    newData[key.trim()] = JSON.parse(valueStr.trim());
+                  } catch (error) {
+                    newData[key.trim()] = valueStr.trim();
+                  }
+                }
+              });
+              setData(newData);
+              setFormData(newData);
+              setIsEditing(false);
+            } catch (error) {
+              alert("Error parsing file");
+            }
+          };
+          reader.readAsText(file);
+        };
+
+        return (
+          <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-[Inter]">
+            <div className="max-w-7xl mx-auto">
+              <header className="mb-8 flex flex-col sm:flex-row justify-between items-start">
+                <div>
+                  <h1 className="text-4xl font-extrabold text-gray-900 border-b-4 border-teal-500 pb-1">
+                    HR Performance Overview
+                  </h1>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Rich recruitment, retention, and financial analytics for HR leaders.
+                  </p>
+                </div>
+                <div className="mt-4 sm:mt-0 flex space-x-3">
+                  <button
+                    onClick={() => setIsEditing(!isEditing)}
+                    className="flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-colors duration-300"
+                  >
+                    <span className="mr-2">✏️</span>
+                    {isEditing ? "Close Editor" : "Edit Metrics"}
+                  </button>
+                  <button
+                    onClick={exportPdf}
+                    className="flex items-center bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-colors duration-300"
+                  >
+                    <span className="mr-2">⬇️</span>
+                    Export PDF
+                  </button>
+                  <button
+                    onClick={exportCsv}
+                    className="flex items-center bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-colors duration-300"
+                  >
+                    <span className="mr-2">⬇️</span>
+                    Export CSV
+                  </button>
+                </div>
+              </header>
+
+              {isEditing && (
+                <div className="mb-8 bg-white p-6 rounded-xl card-shadow border border-gray-100">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Data Editor</h2>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div className="border p-4 rounded-xl bg-gray-50 shadow-md">
+                      <h3 className="text-lg font-semibold mb-3 border-b pb-1">Manpower &amp; Financials</h3>
+                      <label className="block mb-2 text-sm text-gray-600">
+                        Male FTE:
+                        <input
+                          type="number"
+                          value={formData.totalManpower.male}
+                          onChange={(e) => handleInputChange(e, "totalManpower", "male")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <label className="block mb-4 text-sm text-gray-600">
+                        Female FTE:
+                        <input
+                          type="number"
+                          value={formData.totalManpower.female}
+                          onChange={(e) => handleInputChange(e, "totalManpower", "female")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <label className="block mb-2 text-sm text-gray-600">
+                        Total Revenue ($):
+                        <input
+                          type="number"
+                          name="totalRevenue"
+                          value={formData.financials.totalRevenue}
+                          onChange={(e) => handleInputChange(e, "financials")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <label className="block text-sm text-gray-600">
+                        Total Labor Cost ($):
+                        <input
+                          type="number"
+                          name="totalLaborCost"
+                          value={formData.financials.totalLaborCost}
+                          onChange={(e) => handleInputChange(e, "financials")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="border p-4 rounded-xl bg-blue-50 shadow-md">
+                      <h3 className="text-lg font-semibold mb-3 border-b pb-1 text-blue-700">Recruitment Efficiency</h3>
+                      <label className="block mb-2 text-sm text-gray-600">
+                        Time to Fill (Days):
+                        <input
+                          type="number"
+                          name="timeToFillDays"
+                          value={formData.recruitmentPerformance.timeToFillDays}
+                          onChange={(e) => handleInputChange(e, "recruitmentPerformance")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <label className="block mb-2 text-sm text-gray-600">
+                        Cost Per Hire ($):
+                        <input
+                          type="number"
+                          name="costPerHire"
+                          value={formData.recruitmentPerformance.costPerHire}
+                          onChange={(e) => handleInputChange(e, "recruitmentPerformance")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <label className="block mb-2 text-sm text-gray-600">
+                        Offer Acceptance Rate (%):
+                        <input
+                          type="number"
+                          step="0.1"
+                          name="offerAcceptanceRate"
+                          value={(formData.recruitmentPerformance.offerAcceptanceRate * 100).toFixed(2)}
+                          onChange={(e) => handleInputChange(e, "recruitmentPerformance")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <label className="block mb-2 text-sm text-gray-600">
+                        Vacancy Rate (%):
+                        <input
+                          type="number"
+                          step="0.1"
+                          name="vacancyRate"
+                          value={(formData.recruitmentPerformance.vacancyRate * 100).toFixed(2)}
+                          onChange={(e) => handleInputChange(e, "recruitmentPerformance")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <label className="block text-sm text-gray-600">
+                        First-Year Turnover (%):
+                        <input
+                          type="number"
+                          step="0.1"
+                          name="firstYearTurnover"
+                          value={(formData.recruitmentPerformance.firstYearTurnover * 100).toFixed(2)}
+                          onChange={(e) => handleInputChange(e, "recruitmentPerformance")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="border p-4 rounded-xl bg-red-50 shadow-md">
+                      <h3 className="text-lg font-semibold mb-3 border-b pb-1 text-red-700">Turnover / Exits (Count)</h3>
+                      <p className="text-xs font-medium mb-2 text-red-600">Voluntary Exits</p>
+                      <label className="block mb-2 text-sm text-gray-600">
+                        Male Voluntary:
+                        <input
+                          type="number"
+                          value={formData.resignations.voluntary.male.count}
+                          onChange={(e) => handleInputChange(e, "resignations", "voluntary", "male")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <label className="block mb-4 text-sm text-gray-600">
+                        Female Voluntary:
+                        <input
+                          type="number"
+                          value={formData.resignations.voluntary.female.count}
+                          onChange={(e) => handleInputChange(e, "resignations", "voluntary", "female")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <p className="text-xs font-medium mb-2 text-red-600">Involuntary Exits</p>
+                      <label className="block mb-2 text-sm text-gray-600">
+                        Male Involuntary:
+                        <input
+                          type="number"
+                          value={formData.resignations.involuntary.male}
+                          onChange={(e) => handleInputChange(e, "resignations", "involuntary", "male")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                      <label className="block text-sm text-gray-600">
+                        Female Involuntary:
+                        <input
+                          type="number"
+                          value={formData.resignations.involuntary.female}
+                          onChange={(e) => handleInputChange(e, "resignations", "involuntary", "female")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="border p-4 rounded-xl bg-teal-50 shadow-md">
+                      <h3 className="text-lg font-semibold mb-3 border-b pb-1 text-teal-700">Promotions &amp; Trends</h3>
+                      <p className="text-xs font-medium mb-1 text-teal-600">Male Promos (Count / Avg. Days)</p>
+                      <div className="flex space-x-2 mb-2">
+                        <input
+                          type="number"
+                          value={formData.promotions.male.count}
+                          onChange={(e) => handleInputChange(e, "promotions", "male", "count")}
+                          placeholder="Count"
+                          className="w-1/2 p-2 border rounded-lg"
+                        />
+                        <input
+                          type="number"
+                          value={formData.promotions.male.daysToPromotion}
+                          onChange={(e) => handleInputChange(e, "promotions", "male", "daysToPromotion")}
+                          placeholder="Days"
+                          className="w-1/2 p-2 border rounded-lg"
+                        />
+                      </div>
+                      <p className="text-xs font-medium mb-1 text-teal-600">Female Promos (Count / Avg. Days)</p>
+                      <div className="flex space-x-2 mb-4">
+                        <input
+                          type="number"
+                          value={formData.promotions.female.count}
+                          onChange={(e) => handleInputChange(e, "promotions", "female", "count")}
+                          placeholder="Count"
+                          className="w-1/2 p-2 border rounded-lg"
+                        />
+                        <input
+                          type="number"
+                          value={formData.promotions.female.daysToPromotion}
+                          onChange={(e) => handleInputChange(e, "promotions", "female", "daysToPromotion")}
+                          placeholder="Days"
+                          className="w-1/2 p-2 border rounded-lg"
+                        />
+                      </div>
+
+                      <h4 className="text-md font-semibold mb-2 border-t pt-2 text-indigo-700">Latest Trends ({
+                        latestTrend.period || "N/A"
+                      })</h4>
+                      <label className="block mb-2 text-sm text-gray-600">
+                        Voluntary Rate (%):
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={latestTrend.voluntaryRate}
+                          onChange={(e) => handleInputChange(e, "historical", "turnoverTrends", "voluntaryRate")}
+                          className="w-full mt-1 p-2 border rounded-lg"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-4 border-t pt-4">
+                    <button
+                      onClick={handleUpdateData}
+                      className="flex items-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors duration-300"
+                    >
+                      <span className="mr-2">🔄</span>Apply Changes
+                    </button>
+                    <label className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md cursor-pointer transition-colors duration-300">
+                      <span className="mr-2">⬆️</span>Upload CSV/JSON
+                      <input
+                        type="file"
+                        accept=".csv, .json"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <div ref={dashboardRef} className="space-y-10 print:block">
+                <KeyInsights metrics={calculatedMetrics} />
+
+                <h2 className="text-3xl font-extrabold text-gray-900 border-b-2 border-blue-500 pb-1 mt-10">
+                  Recruitment Efficiency &amp; Quality KPIs
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  <KPIcard title="Time to Fill" value={calculatedMetrics.timeToFillDays} unit=" Days" colorClass="text-blue-600" target={30} />
+                  <KPIcard title="Cost per Hire" value={calculatedMetrics.costPerHire} format="currency" colorClass="text-blue-600" target={5000} />
+                  <KPIcard title="Offer Acceptance Rate" value={calculatedMetrics.offerAcceptanceRate} unit="%" format="percent" colorClass="text-green-600" target={90} />
+                  <KPIcard title="Vacancy Rate" value={calculatedMetrics.vacancyRate} unit="%" format="percent" colorClass="text-amber-600" target={3} />
+                  <KPIcard title="First-Year Turnover" value={calculatedMetrics.firstYearTurnover} unit="%" format="percent" colorClass="text-red-600" target={10} />
+                </div>
+
+                <h2 className="text-3xl font-extrabold text-gray-900 border-b-2 border-fuchsia-500 pb-1 mt-10">Talent &amp; Retention KPIs</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  <KPIcard title="Voluntary Turnover %" value={calculatedMetrics.voluntaryTurnoverPct} unit="%" format="percent" colorClass="text-red-600" target={10} />
+                  <KPIcard title="Involuntary Turnover %" value={calculatedMetrics.involuntaryTurnoverPct} unit="%" format="percent" colorClass="text-orange-600" target={5} />
+                  <KPIcard title="Promotion Rate" value={calculatedMetrics.promotionRate} unit="%" format="percent" colorClass="text-teal-600" target={10} />
+                  <KPIcard title="Avg. Time to Promotion" value={calculatedMetrics.avgTimeToPromotionOverallDays / 365} unit=" Years" colorClass="text-amber-600" />
+                  <KPIcard title="Training ROI" value={calculatedMetrics.trainingROI} unit="%" format="percent" colorClass="text-green-600" target={150} />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <ChartContainer title="Workforce Gender Distribution" description={`Total: ${calculatedMetrics.totalManpower} employees`}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Male", value: data.totalManpower.male },
+                            { name: "Female", value: data.totalManpower.female },
+                          ]}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          <Cell fill="#3b82f6" />
+                          <Cell fill="#ec4899" />
+                        </Pie>
+                        <Tooltip formatter={(value, name, props) => [`${value} people`, props.payload.name]} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+
+                  <ChartContainer title="CPH and Hires by Source" description="Cost per Hire vs. Volume">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={sourceEffectivenessData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="source" tickLine={false} axisLine={false} />
+                        <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" tickFormatter={(v) => `$${v.toFixed(0)}`} />
+                        <YAxis yAxisId="right" orientation="right" stroke="#10b981" />
+                        <Tooltip formatter={(value, name, props) => [name === "hires" ? value : `$${value.toFixed(0)}`, name]} />
+                        <Legend />
+                        <Bar yAxisId="left" dataKey="cph" fill="#3b82f6" name="Cost Per Hire ($)" radius={[10, 10, 0, 0]} />
+                        <Bar yAxisId="right" dataKey="hires" fill="#10b981" name="Hires Count" radius={[10, 10, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+
+                  <ChartContainer title="Recruitment Quality vs. Attrition" description="Offer Acceptance Rate vs. First-Year Turnover">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          type="number"
+                          dataKey="acceptance"
+                          name="Offer Acceptance Rate"
+                          unit="%"
+                          domain={[80, 100]}
+                          tickFormatter={(val) => `${val}%`}
+                          stroke="#10b981"
+                        />
+                        <YAxis
+                          type="number"
+                          dataKey="turnover"
+                          name="First-Year Turnover"
+                          unit="%"
+                          domain={[0, 20]}
+                          tickFormatter={(val) => `${val}%`}
+                          stroke="#ef4444"
+                        />
+                        <Tooltip
+                          cursor={{ strokeDasharray: "3 3" }}
+                          formatter={(value, name, props) => [
+                            `${value.toFixed(1)}%`,
+                            props.dataKey === "acceptance" ? "Acceptance Rate" : "1st-Year Turnover",
+                          ]}
+                        />
+                        <Legend />
+                        <Scatter
+                          name="Current Performance"
+                          data={[
+                            { acceptance: calculatedMetrics.offerAcceptanceRate, turnover: calculatedMetrics.firstYearTurnover },
+                          ]}
+                          fill="#6366f1"
+                          shape="circle"
+                          line
+                        />
+                        <Line x1={90} y1={0} x2={90} y2={20} stroke="#10b981" strokeDasharray="5 5" name="Target Acceptance > 90%" />
+                        <Line x1={80} y1={10} x2={100} y2={10} stroke="#ef4444" strokeDasharray="5 5" name="Target Turnover < 10%" />
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <ChartContainer title="Retention and Attrition Trends" description="Quarterly rates (%)">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={turnoverTrendsChartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" />
+                        <YAxis domain={[0, 100]} tickFormatter={(val) => `${val}%`} />
+                        <Tooltip formatter={(value, name) => [`${value.toFixed(2)}%`, name]} />
+                        <Legend />
+                        <Line type="monotone" dataKey="retentionRate" name="Retention Rate" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+                        <Line type="monotone" dataKey="voluntaryRate" name="Voluntary Turnover" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
+                        <Line type="monotone" dataKey="involuntaryRate" name="Involuntary Turnover" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+
+                  <ChartContainer title="Voluntary Resignation Reasons (Top 5)" description={`Total Voluntary Exits: ${calculatedMetrics.totalVoluntaryExits}`}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={resignationReasonChartData.slice(0, 5)}
+                        layout="vertical"
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" />
+                        <YAxis dataKey="reason" type="category" interval={0} axisLine={false} tickLine={false} width={100} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="Male" stackId="a" fill="#3b82f6" radius={[0, 5, 5, 0]} />
+                        <Bar dataKey="Female" stackId="a" fill="#ec4899" radius={[0, 5, 5, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+
+                  <ChartContainer title="Promotion Time Disparity (Days)" description="Average promotion time by gender">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={[
+                          { name: "Male", "Days to Promotion": data.promotions?.male?.daysToPromotion || 0 },
+                          { name: "Female", "Days to Promotion": data.promotions?.female?.daysToPromotion || 0 },
+                        ]}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="Days to Promotion" fill="#f59e0b" radius={[10, 10, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+
+                <h2 className="text-3xl font-extrabold text-gray-900 border-b-2 border-green-500 pb-1 mt-10">Financial &amp; Operational KPIs</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  <KPIcard title="Revenue per FTE" value={calculatedMetrics.revenuePerFTE} format="currency" colorClass="text-red-600" />
+                  <KPIcard title="Profit per FTE" value={calculatedMetrics.profitPerFTE} format="currency" colorClass="text-red-600" />
+                  <KPIcard
+                    title="Labor Cost % of Revenue"
+                    value={calculatedMetrics.laborCostPctOfRevenue}
+                    unit="%"
+                    format="percent"
+                    colorClass="text-red-600"
+                    target={30}
+                  />
+                  <KPIcard title="Absence Rate" value={calculatedMetrics.absenceRate} unit="%" format="percent" colorClass="text-blue-600" target={2} />
+                  <KPIcard title="Total Manpower" value={calculatedMetrics.totalManpower} colorClass="text-indigo-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
 </html>
